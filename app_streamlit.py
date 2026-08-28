@@ -27,7 +27,7 @@ try:
     import matplotlib.patches as mpatches
     from matplotlib.figure import Figure
     HAS_MATPLOTLIB = True
-except ImportError:
+except Exception:
     HAS_MATPLOTLIB = False
 
 try:
@@ -35,25 +35,25 @@ try:
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
     HAS_OPENPYXL = True
-except ImportError:
+except Exception:
     HAS_OPENPYXL = False
 
 try:
     import numpy as np
     HAS_NUMPY = True
-except ImportError:
+except Exception:
     HAS_NUMPY = False
 
 try:
     from scipy.interpolate import make_interp_spline
     HAS_SCIPY = True
-except ImportError:
+except Exception:
     HAS_SCIPY = False
 
 try:
     import pandas as pd
     HAS_PANDAS = True
-except ImportError:
+except Exception:
     HAS_PANDAS = False
 
 # ============================================================
@@ -548,6 +548,9 @@ def desenhar_mapa_fundo(ax, estado_selecionado=""):
 
 def gerar_grafico_mensal(dados, estado, loja, ano, todas_lojas):
     """Gráfico de barras/linha mostrando pontuação mensal para o ano selecionado."""
+    if not HAS_MATPLOTLIB:
+        return None
+
     if todas_lojas:
         registros = [r for r in dados
                      if str(r.get("estado", "")).strip().upper() == estado.upper()
@@ -672,6 +675,9 @@ def gerar_grafico_mensal(dados, estado, loja, ano, todas_lojas):
 
 def gerar_grafico_anual(dados, estado, loja, todas_lojas):
     """Gráfico de tendência: MÉDIA por ano."""
+    if not HAS_MATPLOTLIB:
+        return None
+
     if todas_lojas:
         registros = [r for r in dados
                      if str(r.get("estado", "")).strip().upper() == estado.upper()]
@@ -1506,8 +1512,13 @@ def main():
                     fig = gerar_grafico_mensal(dados, estado_sel, loja_sel if not todas_lojas else "", ano, todas_lojas)
                 except (ValueError, TypeError):
                     st.warning("Ano inválido.")
+                except Exception as e:
+                    st.warning(f"Erro ao gerar gráfico: {e}")
             elif modo_grafico == "Tendência Anual":
-                fig = gerar_grafico_anual(dados, estado_sel, loja_sel if not todas_lojas else "", todas_lojas)
+                try:
+                    fig = gerar_grafico_anual(dados, estado_sel, loja_sel if not todas_lojas else "", todas_lojas)
+                except Exception as e:
+                    st.warning(f"Erro ao gerar gráfico: {e}")
 
             if fig is not None:
                 st.pyplot(fig)
