@@ -549,7 +549,7 @@ def desenhar_mapa_fundo(ax, estado_selecionado=""):
 def gerar_grafico_mensal(dados, estado, loja, ano, todas_lojas):
     """Gráfico de barras/linha mostrando pontuação mensal para o ano selecionado."""
     if not HAS_MATPLOTLIB:
-        return None
+        raise ImportError("matplotlib não está disponível. Instale com: pip install matplotlib")
 
     if todas_lojas:
         registros = [r for r in dados
@@ -676,7 +676,7 @@ def gerar_grafico_mensal(dados, estado, loja, ano, todas_lojas):
 def gerar_grafico_anual(dados, estado, loja, todas_lojas):
     """Gráfico de tendência: MÉDIA por ano."""
     if not HAS_MATPLOTLIB:
-        return None
+        raise ImportError("matplotlib não está disponível. Instale com: pip install matplotlib")
 
     if todas_lojas:
         registros = [r for r in dados
@@ -1094,8 +1094,8 @@ def main():
 
         # Nova loja
         with st.expander("➕ Nova Loja"):
-            nova_loja = st.text_input(f"Nome da nova loja em {estado_sel}", key="nova_loja_input")
-            if st.button("Registrar Loja", key="btn_nova_loja"):
+            nova_loja = st.text_input(f"Nome da nova loja em {estado_sel}", key=f"nova_loja_input_{estado_sel}")
+            if st.button("Registrar Loja", key=f"btn_nova_loja_{estado_sel}"):
                 if nova_loja.strip() and estado_sel:
                     nome = nova_loja.strip().upper()
                     lojas_atuais = obter_lojas_por_estado(dados, estado_sel)
@@ -1113,8 +1113,8 @@ def main():
 
         # Novo ano
         with st.expander("➕ Novo Ano"):
-            novo_ano = st.text_input(f"Novo ano (a partir de {ANO_INICIAL})", key="novo_ano_input")
-            if st.button("Registrar Ano", key="btn_novo_ano"):
+            novo_ano = st.text_input(f"Novo ano (a partir de {ANO_INICIAL})", key=f"novo_ano_input_{estado_sel}_{loja_sel}")
+            if st.button("Registrar Ano", key=f"btn_novo_ano_{estado_sel}_{loja_sel}"):
                 if novo_ano.strip() and estado_sel and not todas_lojas:
                     try:
                         ano_int = int(novo_ano.strip())
@@ -1184,6 +1184,12 @@ def main():
                     pass
             st.session_state.dados = [calcular_media(dict(r)) for r in DADOS_REAIS]
             salvar_dados_json(st.session_state.dados)
+            # Limpar chaves de widgets de edição do session_state
+            # para evitar valores órfãos após reset
+            keys_to_clear = [k for k in list(st.session_state.keys())
+                             if k.startswith(("pont_", "status_", "contrato_input_", "anexo_uploader_"))]
+            for k in keys_to_clear:
+                del st.session_state[k]
             st.success("Dados restaurados aos valores originais!")
             st.rerun()
 
@@ -1203,7 +1209,7 @@ def main():
 
                 # Contrato
                 contrato_val = reg.get("contrato", "ASSAÍ - ATACADISTA") if reg else "ASSAÍ - ATACADISTA"
-                contrato = st.text_input("Contrato", value=contrato_val, key="contrato_input")
+                contrato = st.text_input("Contrato", value=contrato_val, key=f"contrato_input_{estado_sel}_{loja_sel}_{ano_sel}")
 
                 # Anexo
                 st.markdown("#### 📎 Anexo da Pontuação")
@@ -1221,12 +1227,12 @@ def main():
                             label="⬇️ Baixar Anexo",
                             data=anexo_bytes,
                             file_name=nome_arq,
-                            key="btn_baixar_anexo"
+                            key=f"btn_baixar_anexo_{estado_sel}_{loja_sel}_{ano_sel}"
                         )
                     except Exception:
                         st.warning("Erro ao ler anexo.")
 
-                    if st.button("🗑️ Remover Anexo", key="btn_remover_anexo"):
+                    if st.button("🗑️ Remover Anexo", key=f"btn_remover_anexo_{estado_sel}_{loja_sel}_{ano_sel}"):
                         if os.path.exists(anexo_atual):
                             try:
                                 os.remove(anexo_atual)
@@ -1243,7 +1249,7 @@ def main():
                 # Upload de anexo
                 anexo_upload = st.file_uploader(
                     "Anexar arquivo", type=["png", "jpg", "jpeg", "bmp", "gif", "pdf", "xlsx", "csv", "docx", "txt"],
-                    key="anexo_uploader"
+                    key=f"anexo_uploader_{estado_sel}_{loja_sel}_{ano_sel}"
                 )
                 if anexo_upload is not None:
                     anexo_bytes_data = anexo_upload.read()
@@ -1336,7 +1342,7 @@ def main():
                     with col2:
                         if val and eh_valor_texto(val):
                             # Texto de status — mostrar como disabled + selectbox
-                            st.text_input(f"Pont. {mk}", value=val, disabled=True, key=f"pont_{mk}", label_visibility="collapsed")
+                            st.text_input(f"Pont. {mk}", value=val, disabled=True, key=f"pont_{mk}_{estado_sel}_{loja_sel}_{ano_sel}", label_visibility="collapsed")
                             pont_mensal[mk] = val
                         else:
                             # Campo numérico
@@ -1350,7 +1356,7 @@ def main():
                             input_val = st.text_input(
                                 f"Pont. {mk}", value=display_val,
                                 placeholder="Pontuação",
-                                key=f"pont_{mk}",
+                                key=f"pont_{mk}_{estado_sel}_{loja_sel}_{ano_sel}",
                                 label_visibility="collapsed"
                             )
                             if input_val.strip():
@@ -1373,7 +1379,7 @@ def main():
                         status_sel = st.selectbox(
                             f"Status {mk}", options=status_opts,
                             index=status_opts.index(current_status) if current_status in status_opts else 0,
-                            key=f"status_{mk}",
+                            key=f"status_{mk}_{estado_sel}_{loja_sel}_{ano_sel}",
                             label_visibility="collapsed"
                         )
                         if status_sel != "(número)":
@@ -1400,7 +1406,7 @@ def main():
                 col_btn1, col_btn2, col_btn3, col_btn4 = st.columns(4)
 
                 with col_btn1:
-                    if st.button("💾 Salvar", key="btn_salvar", type="primary", use_container_width=True):
+                    if st.button("💾 Salvar", key=f"btn_salvar_{estado_sel}_{loja_sel}_{ano_sel}", type="primary", use_container_width=True):
                         if reg:
                             reg["contrato"] = contrato.strip() or "ASSAÍ - ATACADISTA"
                             for mk, _ in MESES:
@@ -1423,7 +1429,7 @@ def main():
                         st.rerun()
 
                 with col_btn2:
-                    if st.button("🗑️ Excluir", key="btn_excluir", type="secondary", use_container_width=True):
+                    if st.button("🗑️ Excluir", key=f"btn_excluir_{estado_sel}_{loja_sel}_{ano_sel}", type="secondary", use_container_width=True):
                         if reg:
                             anexo = reg.get("anexo", "")
                             if anexo and os.path.exists(anexo):
@@ -1434,11 +1440,17 @@ def main():
                             dados.remove(reg)
                             salvar_dados_json(dados)
                             st.session_state.dados = dados
+                            # Limpar chaves de widgets do registro excluído
+                            suffix = f"_{estado_sel}_{loja_sel}_{ano_sel}"
+                            keys_to_clear = [k for k in list(st.session_state.keys())
+                                             if k.endswith(suffix) and (k.startswith(("pont_", "status_", "contrato_input_", "anexo_uploader_")))]
+                            for k in keys_to_clear:
+                                del st.session_state[k]
                             st.success("Registro excluído!")
                             st.rerun()
 
                 with col_btn3:
-                    if st.button("📄 Novo", key="btn_novo_registro", type="secondary", use_container_width=True):
+                    if st.button("📄 Novo", key=f"btn_novo_registro_{estado_sel}_{loja_sel}_{ano_sel}", type="secondary", use_container_width=True):
                         if not reg:
                             try:
                                 ano_int = int(ano_sel)
@@ -1455,13 +1467,19 @@ def main():
                             st.info("Este registro já existe. Edite os campos e clique Salvar.")
 
                 with col_btn4:
-                    if st.button("🧹 Limpar", key="btn_limpar", type="secondary", use_container_width=True):
+                    if st.button("🧹 Limpar", key=f"btn_limpar_{estado_sel}_{loja_sel}_{ano_sel}", type="secondary", use_container_width=True):
                         if reg:
                             for mk, _ in MESES:
                                 reg[f"pont_{mk}"] = ""
                             calcular_media(reg)
                             salvar_dados_json(dados)
                             st.session_state.dados = dados
+                            # Limpar chaves de widgets de pontuação/status no session_state
+                            suffix = f"_{estado_sel}_{loja_sel}_{ano_sel}"
+                            keys_to_clear = [k for k in list(st.session_state.keys())
+                                             if k.endswith(suffix) and (k.startswith(("pont_", "status_")))]
+                            for k in keys_to_clear:
+                                del st.session_state[k]
                             st.success("Campos mensais limpos!")
                             st.rerun()
 
@@ -1506,23 +1524,27 @@ def main():
             )
 
             fig = None
+            _erro_grafico = False
             if modo_grafico == "Mensal" and ano_sel:
                 try:
                     ano = int(ano_sel)
                     fig = gerar_grafico_mensal(dados, estado_sel, loja_sel if not todas_lojas else "", ano, todas_lojas)
                 except (ValueError, TypeError):
                     st.warning("Ano inválido.")
+                    _erro_grafico = True
                 except Exception as e:
                     st.warning(f"Erro ao gerar gráfico: {e}")
+                    _erro_grafico = True
             elif modo_grafico == "Tendência Anual":
                 try:
                     fig = gerar_grafico_anual(dados, estado_sel, loja_sel if not todas_lojas else "", todas_lojas)
                 except Exception as e:
                     st.warning(f"Erro ao gerar gráfico: {e}")
+                    _erro_grafico = True
 
             if fig is not None:
                 st.pyplot(fig)
-            else:
+            elif not _erro_grafico:
                 if estado_sel and ano_sel:
                     st.info("Sem dados numéricos para exibir. Insira pontuações nos campos mensais.")
                 else:
