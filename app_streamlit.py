@@ -1135,6 +1135,83 @@ def main():
                     except ValueError:
                         st.warning("Digite um ano válido.")
 
+        # Excluir estado
+        with st.expander("🗑️ Excluir Estado"):
+            if estado_sel:
+                st.warning(f"⚠️ Isso removerá **todos** os registros do estado **{estado_sel}** e seus anexos!")
+                confirma_estado = st.checkbox(
+                    f"Confirmo que desejo excluir o estado {estado_sel}",
+                    key=f"chk_excluir_estado_{estado_sel}"
+                )
+                if st.button("Excluir Estado", key=f"btn_excluir_estado_{estado_sel}", disabled=not confirma_estado, type="secondary"):
+                    # Remover anexos associados
+                    for reg in dados:
+                        if str(reg.get("estado", "")).strip().upper() == estado_sel.upper():
+                            anexo = reg.get("anexo", "")
+                            if anexo and os.path.exists(anexo):
+                                try:
+                                    os.remove(anexo)
+                                except Exception:
+                                    pass
+                    # Remover registros
+                    dados = [r for r in dados if str(r.get("estado", "")).strip().upper() != estado_sel.upper()]
+                    salvar_dados_json(dados)
+                    st.session_state.dados = dados
+                    # Limpar chaves de widgets do estado excluído
+                    prefix_estado = f"_{estado_sel}_"
+                    keys_to_clear = [k for k in list(st.session_state.keys())
+                                     if prefix_estado in k and k.startswith(("pont_", "status_", "contrato_input_", "anexo_uploader_"))]
+                    for k in keys_to_clear:
+                        del st.session_state[k]
+                    # Resetar seleção de estado para o primeiro disponível
+                    novos_estados = obter_estados(dados)
+                    st.session_state.estado_sel = novos_estados[0] if novos_estados else ""
+                    st.success(f"Estado '{estado_sel}' excluído com sucesso!")
+                    st.rerun()
+            else:
+                st.info("Selecione um estado para excluí-lo.")
+
+        # Excluir loja
+        with st.expander("🗑️ Excluir Loja"):
+            if estado_sel and loja_sel and loja_sel != "TODAS AS LOJAS":
+                st.warning(f"⚠️ Isso removerá **todos** os registros da loja **{loja_sel}** em **{estado_sel}** e seus anexos!")
+                confirma_loja = st.checkbox(
+                    f"Confirmo que desejo excluir a loja {loja_sel}",
+                    key=f"chk_excluir_loja_{estado_sel}_{loja_sel}"
+                )
+                if st.button("Excluir Loja", key=f"btn_excluir_loja_{estado_sel}_{loja_sel}", disabled=not confirma_loja, type="secondary"):
+                    # Remover anexos associados
+                    for reg in dados:
+                        if (str(reg.get("estado", "")).strip().upper() == estado_sel.upper()
+                                and str(reg.get("loja", "")).strip().upper() == loja_sel.upper()):
+                            anexo = reg.get("anexo", "")
+                            if anexo and os.path.exists(anexo):
+                                try:
+                                    os.remove(anexo)
+                                except Exception:
+                                    pass
+                    # Remover registros
+                    dados = [r for r in dados
+                             if not (str(r.get("estado", "")).strip().upper() == estado_sel.upper()
+                                     and str(r.get("loja", "")).strip().upper() == loja_sel.upper())]
+                    salvar_dados_json(dados)
+                    st.session_state.dados = dados
+                    # Limpar chaves de widgets da loja excluída
+                    suffix_loja = f"_{estado_sel}_{loja_sel}_"
+                    keys_to_clear = [k for k in list(st.session_state.keys())
+                                     if suffix_loja in k and k.startswith(("pont_", "status_", "contrato_input_", "anexo_uploader_"))]
+                    for k in keys_to_clear:
+                        del st.session_state[k]
+                    # Resetar seleção de loja para a primeira disponível
+                    novas_lojas = obter_lojas_por_estado(dados, estado_sel)
+                    st.session_state.loja_sel = novas_lojas[0] if novas_lojas else "TODAS AS LOJAS"
+                    st.success(f"Loja '{loja_sel}' excluída com sucesso!")
+                    st.rerun()
+            elif loja_sel == "TODAS AS LOJAS":
+                st.info("Selecione uma loja específica para excluí-la.")
+            else:
+                st.info("Selecione um estado e uma loja para excluí-los.")
+
         st.divider()
 
         # ---- Exportar / Importar ----
